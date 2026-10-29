@@ -1,0 +1,18 @@
+[Unit]
+Description=pyTide Raspberry Pi tide clock
+After=network-online.target graphical.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+Group=__GROUP__
+WorkingDirectory=__WORKDIR__
+ExecStart=__PYTHON__ -m app.main --fullscreen
+Restart=on-failure
+RestartSec=10
+Environment=DISPLAY=__DISPLAY__
+Environment=XAUTHORITY=__XAUTHORITY__
+
+[Install]
+WantedBy=graphical.target

@@ -74,7 +74,31 @@ mkdir -p "${HARMONICS_DIR}"
 cd "${TMP_DIR}"
 wget -q "https://flaterco.com/files/xtide/${HARMONICS_ARCHIVE}.tar.xz"
 tar xf "${HARMONICS_ARCHIVE}.tar.xz"
-cp -f "${HARMONICS_ARCHIVE}/${HARMONICS_ARCHIVE}-free.tcd" "${HARMONICS_DIR}/"
+
+HARMONICS_STEM="${HARMONICS_ARCHIVE%-free}"
+HARMONICS_TCD_SOURCE=""
+
+for candidate in \
+  "${HARMONICS_ARCHIVE}/${HARMONICS_ARCHIVE}.tcd" \
+  "${HARMONICS_ARCHIVE}/${HARMONICS_STEM}-free.tcd" \
+  "${HARMONICS_STEM}/${HARMONICS_ARCHIVE}.tcd" \
+  "${HARMONICS_STEM}/${HARMONICS_STEM}-free.tcd"; do
+  if [[ -f "${candidate}" ]]; then
+    HARMONICS_TCD_SOURCE="${candidate}"
+    break
+  fi
+done
+
+if [[ -z "${HARMONICS_TCD_SOURCE}" ]]; then
+  HARMONICS_TCD_SOURCE="$(find . -maxdepth 5 -type f -name '*.tcd' | head -n 1 || true)"
+fi
+
+if [[ -z "${HARMONICS_TCD_SOURCE}" ]]; then
+  echo "Failed to locate harmonics .tcd file after extracting ${HARMONICS_ARCHIVE}.tar.xz" >&2
+  exit 1
+fi
+
+cp -f "${HARMONICS_TCD_SOURCE}" "${HARMONICS_DIR}/"
 
 echo "${HARMONICS_DIR}" > /etc/xtide.conf
 

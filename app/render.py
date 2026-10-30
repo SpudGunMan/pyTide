@@ -575,6 +575,10 @@ def draw_clock(surface, config, now: datetime | None = None, station: str | None
     panel_y = height * 0.06
     rail_x = width * 0.72
     rail_w = width * 0.24
+    card_top_offset = 90
+    card_height = 120
+    card_step = 150
+    panel_bottom_padding = 24
     panel_alpha = int(getattr(config, "panel_alpha", 188))
     card_alpha = int(getattr(config, "card_alpha", 188))
     rail_alpha = int(getattr(config, "rail_alpha", 212))
@@ -584,7 +588,9 @@ def draw_clock(surface, config, now: datetime | None = None, station: str | None
         # Dark mode needs a denser tint so bright backgrounds do not wash out the dial.
         clock_face_alpha = max(clock_face_alpha, 210)
 
-    panel = pygame.Rect(panel_x, panel_y, panel_width, height * 0.74)
+    forecast_panel_height = card_top_offset + ((forecast_days - 1) * card_step) + card_height + panel_bottom_padding
+    panel_height = min(height * 0.74, forecast_panel_height)
+    panel = pygame.Rect(panel_x, panel_y, panel_width, panel_height)
     _draw_alpha_rect(surface, panel, palette["panel"], panel_alpha, border_radius=16)
     _draw_alpha_rect(surface, pygame.Rect(rail_x, 0, rail_w, height), palette["rail"], rail_alpha, border_radius=0)
 
@@ -597,8 +603,8 @@ def draw_clock(surface, config, now: datetime | None = None, station: str | None
     forecast_items = [(name, details, palette["card_value"]) for name, details in forecast_cards]
 
     for idx, (name, details, color) in enumerate(forecast_items):
-        block_y = panel_y + 90 + idx * 150
-        _draw_alpha_rect(surface, pygame.Rect(panel_x + 18, block_y, panel_width - 36, 120), palette["card"], card_alpha, border_radius=10)
+        block_y = panel_y + card_top_offset + idx * card_step
+        _draw_alpha_rect(surface, pygame.Rect(panel_x + 18, block_y, panel_width - 36, card_height), palette["card"], card_alpha, border_radius=10)
         title = _make_label("DejaVu Sans", 28, name, config.accent_color)
         surface.blit(title, (panel_x + 26, block_y + 12))
         value_lines = details.split("\n")

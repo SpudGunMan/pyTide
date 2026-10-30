@@ -62,25 +62,24 @@ def _event_display_name(event_type: str) -> str:
     return mapping.get(name, name.replace("_", " ").replace("-", " "))
 
 
-def _get_forecast_cards(forecast, now: datetime):
+def _get_forecast_cards(forecast, now: datetime, days: int = 3):
+    days = max(1, int(days))
+    fallback_labels = ["TODAY", "TOMORROW", "WEDNESDAY", "THURSDAY", "FRIDAY"]
+    fallback_cards = [
+        (fallback_labels[idx] if idx < len(fallback_labels) else f"DAY {idx + 1}", "HIGH: --\nLOW: --")
+        for idx in range(days)
+    ]
+
     if not forecast or not getattr(forecast, "readings", None):
-        return [
-            ("TODAY", "HIGH: --\nLOW: --"),
-            ("TOMORROW", "HIGH: --\nLOW: --"),
-            ("WEDNESDAY", "HIGH: --\nLOW: --"),
-        ]
+        return fallback_cards
 
     future = _future_readings(forecast.readings, now)
     if not future:
-        return [
-            ("TODAY", "HIGH: --\nLOW: --"),
-            ("TOMORROW", "HIGH: --\nLOW: --"),
-            ("WEDNESDAY", "HIGH: --\nLOW: --"),
-        ]
+        return fallback_cards
 
     cards = []
     current_day = now.date()
-    for day_offset in range(3):
+    for day_offset in range(days):
         day = current_day + timedelta(days=day_offset)
         day_events = [r for r in future if r.timestamp.date() == day]
         high = next((r for r in day_events if r.event_type.lower() == "high"), None)
@@ -552,6 +551,8 @@ def draw_clock(surface, config, now: datetime | None = None, station: str | None
 
     now = now or datetime.now()
     width, height = surface.get_size()
+    is_low_res = width <= 1280 or height <= 720
+    forecast_days = 2 if is_low_res else 3
     theme_name = (getattr(config, "theme", "light") or "light").strip().lower()
     palette = _theme_palette(config)
 
@@ -592,7 +593,7 @@ def draw_clock(surface, config, now: datetime | None = None, station: str | None
     left_title_rect = left_title.get_rect(centerx=panel.centerx, y=int(panel_y + 12))
     surface.blit(left_title, left_title_rect)
 
-    forecast_cards = _get_forecast_cards(forecast, now)
+    forecast_cards = _get_forecast_cards(forecast, now, days=forecast_days)
     forecast_items = [(name, details, palette["card_value"]) for name, details in forecast_cards]
 
     for idx, (name, details, color) in enumerate(forecast_items):
@@ -702,7 +703,8 @@ def draw_clock(surface, config, now: datetime | None = None, station: str | None
     content_center_x = (content_left + content_right) // 2
 
     right_y = 16
-    title_font = pygame.font.SysFont("DejaVu Sans", 28, bold=True)
+    title_font_size = 24 if is_low_res else 28
+    title_font = pygame.font.SysFont("DejaVu Sans", title_font_size, bold=True)
     title = title_font.render("TIDE PREDICTIONS", True, config.accent_color)
     title_rect = title.get_rect(centerx=content_center_x, y=right_y)
     surface.blit(title, title_rect)

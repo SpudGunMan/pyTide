@@ -551,7 +551,7 @@ def draw_clock(surface, config, now: datetime | None = None, station: str | None
 
     now = now or datetime.now()
     width, height = surface.get_size()
-    is_low_res = width <= 1280 or height <= 720
+    is_low_res = width <= 1280 and height <= 720
     forecast_days = 2 if is_low_res else 3
     theme_name = (getattr(config, "theme", "light") or "light").strip().lower()
     palette = _theme_palette(config)

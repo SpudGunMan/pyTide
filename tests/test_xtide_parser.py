@@ -118,6 +118,7 @@ def test_config_defaults_are_valid():
     assert cfg.station
     assert cfg.xtide_path
     assert cfg.harmonics_url
+    assert cfg.tide_height_unit == "ft"
     assert cfg.refresh_seconds > 0
     assert cfg.harmonics_refresh_hours > 0
     assert cfg.latitude is None or -90 <= cfg.latitude <= 90
@@ -139,11 +140,11 @@ def test_config_accepts_harmonics_url_and_unit_aliases():
             "--harmonics-url",
             "https://api.github.com/repos/openwatersio/slackwater-database/releases/latest",
             "--tide-height-unit",
-            "meters",
+            "f",
         ]
     )
     assert cfg.harmonics_url.endswith("/releases/latest")
-    assert cfg.tide_height_unit == "m"
+    assert cfg.tide_height_unit == "ft"
 
 
 def test_xtide_station_output_parses_lat_lon():
@@ -296,6 +297,8 @@ def test_fetch_forecast_keeps_late_day_events_within_day_window(tmp_path):
         import subprocess
 
         def fake_run(*args, **kwargs):
+            assert "-u" in args[0]
+            assert "ft" in args[0]
             return subprocess.CompletedProcess(args[0], 0, stdout=output, stderr="")
 
         original_run = xtide_module.subprocess.run

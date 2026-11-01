@@ -88,7 +88,7 @@ CLI flags override any values loaded from `settings.example.json` and `settings.
 - `--harmonics-dir` (default: `/usr/local/share/xtide`): Directory containing harmonics files.
 - `--harmonics-url` (default: `https://api.github.com/repos/openwatersio/slackwater-database/releases/latest`): GitHub latest release endpoint used to resolve the newest harmonics `.tcd` asset.
 - `--cache-dir` (default: `.pytide-cache`): Local cache directory.
-- `--tide-height-unit` (default: `m`): Default unit label used when XTide output does not include explicit units (`m` or `ft`).
+- `--tide-height-unit` (default: `ft`): Display/output unit for tide heights (`ft` or `m`). The alias `f` is accepted for feet.
 
 ### Coordinates and weather
 
@@ -180,7 +180,7 @@ echo "/usr/local/share/xtide" | sudo tee /etc/xtide.conf
 /usr/local/bin/tide -l "Palo Alto Yacht Harbor, San Francisco Bay, California"
 ```
 
-The OpenWater Slackwater TCD uses meters for tide heights. XTide can still render feet if requested with `-u ft`.
+The OpenWater Slackwater TCD uses meters for tide heights. pyTide defaults to feet output and requests XTide output in the configured unit.
 
 ## Set the tide station location and weather coordinates
 

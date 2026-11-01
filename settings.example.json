@@ -3,7 +3,7 @@
   "xtide_path": "/usr/local/bin/tide",
   "harmonics_dir": "/usr/local/share/xtide",
   "harmonics_url": "https://api.github.com/repos/openwatersio/slackwater-database/releases/latest",
-  "tide_height_unit": "m",
+  "tide_height_unit": "ft",
   "cache_dir": ".pytide-cache",
   "latitude": null,
   "longitude": null,

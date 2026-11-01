@@ -25,20 +25,37 @@ def _latest_tcd_info(harmonics_dir: str) -> tuple[Path, float] | None:
     return newest, newest.stat().st_mtime
 
 
+def _normalize_height_unit(value: str | None) -> str:
+    unit = (value or "ft").strip().lower()
+    if unit in {"meter", "meters"}:
+        return "m"
+    if unit in {"foot", "feet", "f"}:
+        return "ft"
+    return unit if unit in {"m", "ft"} else "ft"
+
+
+def _convert_height_unit(value: float | None, from_unit: str, to_unit: str) -> float | None:
+    if value is None:
+        return None
+    if from_unit == to_unit:
+        return float(value)
+    if from_unit == "m" and to_unit == "ft":
+        return float(value) * 3.28084
+    if from_unit == "ft" and to_unit == "m":
+        return float(value) * 0.3048
+    return float(value)
+
+
 def _build_model(config: TideClockConfig) -> TideModel:
     try:
-        forecast = fetch_forecast(config.xtide_path, config.station, days=10)
-        default_unit = (config.tide_height_unit or "m").strip().lower()
-        if default_unit in {"meter", "meters"}:
-            default_unit = "m"
-        if default_unit in {"feet", "foot"}:
-            default_unit = "ft"
+        target_unit = _normalize_height_unit(config.tide_height_unit)
+        forecast = fetch_forecast(config.xtide_path, config.station, days=10, output_unit=target_unit)
         readings = [
             TideReading(
                 timestamp=event.timestamp,
                 event_type=event.event_type,
-                level=event.height,
-                level_unit=event.height_unit or default_unit,
+                level=_convert_height_unit(event.height, _normalize_height_unit(event.height_unit), target_unit),
+                level_unit=target_unit,
                 raw=event.raw,
             )
             for event in forecast.events

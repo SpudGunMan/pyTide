@@ -45,10 +45,10 @@ def _format_level(value, unit: str | None = None) -> str:
     normalized_unit = (unit or "").strip().lower()
     if normalized_unit in {"meter", "meters"}:
         normalized_unit = "m"
-    if normalized_unit in {"feet", "foot"}:
+    if normalized_unit in {"feet", "foot", "f"}:
         normalized_unit = "ft"
     if normalized_unit not in {"m", "ft"}:
-        normalized_unit = "m"
+        normalized_unit = "ft"
     return f"{float(value):.1f} {normalized_unit}"
 
 

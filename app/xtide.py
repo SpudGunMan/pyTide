@@ -176,11 +176,19 @@ def get_station_list(xtide_path: str) -> list[str]:
     return stations
 
 
-def fetch_forecast(xtide_path: str, station: str, days: int = 7) -> TideForecast:
+def fetch_forecast(xtide_path: str, station: str, days: int = 7, output_unit: str = "ft") -> TideForecast:
     if not Path(xtide_path).exists():
         raise FileNotFoundError(f"XTide executable not found at {xtide_path}")
 
-    command = [xtide_path, "-l", station]
+    unit = (output_unit or "ft").strip().lower()
+    if unit in {"meter", "meters"}:
+        unit = "m"
+    elif unit in {"foot", "feet", "f"}:
+        unit = "ft"
+    if unit not in {"m", "ft"}:
+        unit = "ft"
+
+    command = [xtide_path, "-l", station, "-u", unit]
     try:
         result = subprocess.run(
             command,

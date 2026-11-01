@@ -49,7 +49,7 @@ class TideClockConfig:
     xtide_path: str = "/usr/local/bin/tide"
     harmonics_dir: str = "/usr/local/share/xtide"
     harmonics_url: str = "https://api.github.com/repos/openwatersio/slackwater-database/releases/latest"
-    tide_height_unit: str = "m"
+    tide_height_unit: str = "ft"
     cache_dir: str = ".pytide-cache"
     latitude: float | None = None
     longitude: float | None = None
@@ -120,10 +120,10 @@ class TideClockConfig:
                 defaults[key] = int(defaults[key])
 
         defaults["theme"] = str(defaults.get("theme", "light")).strip().lower()
-        defaults["tide_height_unit"] = str(defaults.get("tide_height_unit", "m")).strip().lower()
+        defaults["tide_height_unit"] = str(defaults.get("tide_height_unit", "ft")).strip().lower()
         if defaults["tide_height_unit"] in {"meter", "meters"}:
             defaults["tide_height_unit"] = "m"
-        elif defaults["tide_height_unit"] in {"foot", "feet"}:
+        elif defaults["tide_height_unit"] in {"foot", "feet", "f"}:
             defaults["tide_height_unit"] = "ft"
         defaults["weather_enabled"] = bool(defaults.get("weather_enabled", True))
         defaults["fullscreen"] = bool(defaults.get("fullscreen", False))
@@ -140,7 +140,7 @@ class TideClockConfig:
         parser.add_argument("--harmonics-dir", default=defaults["harmonics_dir"])
         parser.add_argument("--harmonics-url", default=defaults["harmonics_url"])
         parser.add_argument("--cache-dir", default=defaults["cache_dir"])
-        parser.add_argument("--tide-height-unit", choices=["m", "meter", "meters", "ft", "feet", "foot"], default=defaults["tide_height_unit"])
+        parser.add_argument("--tide-height-unit", choices=["m", "meter", "meters", "ft", "feet", "foot", "f"], default=defaults["tide_height_unit"])
         parser.add_argument("--latitude", type=lambda value: parse_coordinate(value, "latitude"), default=defaults.get("latitude"))
         parser.add_argument("--longitude", type=lambda value: parse_coordinate(value, "longitude"), default=defaults.get("longitude"))
         parser.add_argument("--weather-refresh-seconds", type=int, default=defaults["weather_refresh_seconds"])
@@ -178,7 +178,7 @@ class TideClockConfig:
         tide_height_unit = args.tide_height_unit.lower().strip()
         if tide_height_unit in {"meter", "meters"}:
             tide_height_unit = "m"
-        elif tide_height_unit in {"foot", "feet"}:
+        elif tide_height_unit in {"foot", "feet", "f"}:
             tide_height_unit = "ft"
         background_image = None if args.disable_background_image else args.background_image
         background_overlay_alpha = max(0, min(255, int(args.background_overlay_alpha)))

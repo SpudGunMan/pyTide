@@ -968,20 +968,22 @@ def draw_clock(surface, config, now: datetime | None = None, station: str | None
     bottom = pygame.Rect(0, height - 120, int(rail_x), 120)
     _draw_alpha_rect(surface, bottom, palette["table_bg"], table_alpha)
     table_cols = ["DATE", "SUNRISE", "MOON RISE", "HIGH", "LOW", "SUNSET", "MOON SET"]
-    x = 40
+    table_left = 28 if is_low_res else 40
+    col_step = 104 if is_low_res else 120
+    x = table_left
     for col in table_cols:
         cell = _make_label("DejaVu Sans", 14, col, config.accent_color)
         surface.blit(cell, (x, height - 100))
-        x += 120
+        x += col_step
 
     day_rows = _build_day_rows(forecast, now, days=2, start_offset=1)
     row_y = height - 70
     for day_row in day_rows:
-        x = 40
+        x = table_left
         for cell_value in day_row:
             cell = _make_label("DejaVu Sans", 12, cell_value, palette["value_text"])
             surface.blit(cell, (x, row_y))
-            x += 120
+            x += col_step
         row_y += 18
 
     footer_y = height - 20

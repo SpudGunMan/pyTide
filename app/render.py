@@ -59,6 +59,157 @@ def _future_readings(readings, now: datetime):
     return [reading for reading in sorted(readings, key=lambda event: event.timestamp) if reading.timestamp >= now]
 
 
+def _reading_level(reading) -> float | None:
+    try:
+        return float(getattr(reading, "level", None))
+    except (TypeError, ValueError):
+        return None
+
+
+def _profile_tide_events(forecast):
+    if not forecast or not getattr(forecast, "readings", None):
+        return []
+
+    events = []
+    for reading in sorted(forecast.readings, key=lambda event: event.timestamp):
+        kind = _tide_kind(getattr(reading, "event_type", ""))
+        level = _reading_level(reading)
+        if kind is None or level is None:
+            continue
+        events.append((reading.timestamp, level))
+    return events
+
+
+def _estimate_tide_level(sample_time: datetime, tide_events) -> float | None:
+    if not tide_events:
+        return None
+
+    previous = None
+    upcoming = None
+    for event_time, level in tide_events:
+        if event_time <= sample_time:
+            previous = (event_time, level)
+            continue
+        upcoming = (event_time, level)
+        break
+
+    if previous is None and upcoming is None:
+        return None
+    if previous is None:
+        return upcoming[1]
+    if upcoming is None:
+        return previous[1]
+
+    prev_time, prev_level = previous
+    next_time, next_level = upcoming
+    span_seconds = max(1.0, (next_time - prev_time).total_seconds())
+    elapsed_seconds = max(0.0, min(span_seconds, (sample_time - prev_time).total_seconds()))
+    progress = elapsed_seconds / span_seconds
+
+    # Use eased interpolation so the profile reads like a tide curve rather than a sawtooth.
+    eased = 0.5 - 0.5 * math.cos(progress * math.pi)
+    return prev_level + (next_level - prev_level) * eased
+
+
+def _build_tide_profile_series(forecast, now: datetime, hours: int = 24, samples: int = 72):
+    if hours <= 0 or samples < 2:
+        return []
+
+    tide_events = _profile_tide_events(forecast)
+    if not tide_events:
+        return []
+
+    window_end = now + timedelta(hours=hours)
+    window_seconds = (window_end - now).total_seconds()
+    if window_seconds <= 0:
+        return []
+
+    points = []
+    for index in range(samples):
+        ratio = index / (samples - 1)
+        sample_time = now + timedelta(seconds=window_seconds * ratio)
+        level = _estimate_tide_level(sample_time, tide_events)
+        if level is None:
+            continue
+        points.append((sample_time, level))
+
+    return points
+
+
+def _draw_tide_profile_panel(
+    surface,
+    rect: pygame.Rect,
+    now: datetime,
+    forecast,
+    palette,
+    accent_color: tuple[int, int, int],
+    is_low_res: bool,
+) -> None:
+    if rect.width < 90 or rect.height < 70:
+        return
+
+    _draw_alpha_rect(surface, rect, palette["card"], 178, border_radius=10)
+    pygame.draw.rect(surface, palette["tick"], rect, 1, border_radius=10)
+
+    inset = 10 if is_low_res else 12
+    top_pad = 26 if is_low_res else 28
+    bottom_pad = 12 if is_low_res else 14
+    plot = pygame.Rect(
+        rect.left + inset,
+        rect.top + top_pad,
+        rect.width - inset * 2,
+        rect.height - top_pad - bottom_pad,
+    )
+    if plot.width < 50 or plot.height < 28:
+        return
+
+    pygame.draw.line(surface, palette["tick"], (plot.left, plot.centery), (plot.right, plot.centery), 1)
+
+    profile = _build_tide_profile_series(forecast, now, hours=24, samples=56 if is_low_res else 84)
+    if len(profile) < 2:
+        no_data = _make_label("DejaVu Sans", 12, "NO TIDE DATA", palette["value_text"])
+        no_data_rect = no_data.get_rect(center=plot.center)
+        surface.blit(no_data, no_data_rect)
+        return
+
+    levels = [level for _, level in profile]
+    min_level = min(levels)
+    max_level = max(levels)
+    if abs(max_level - min_level) < 0.05:
+        min_level -= 0.5
+        max_level += 0.5
+
+    span = max_level - min_level
+    window_seconds = 24 * 3600
+
+    points = []
+    for stamp, level in profile:
+        x_ratio = max(0.0, min(1.0, (stamp - now).total_seconds() / window_seconds))
+        y_ratio = (level - min_level) / span
+        x = plot.left + int(x_ratio * plot.width)
+        y = plot.bottom - int(y_ratio * plot.height)
+        points.append((x, y))
+
+    if len(points) < 2:
+        return
+
+    fill = pygame.Surface((plot.width, plot.height), pygame.SRCALPHA)
+    local_curve = [(x - plot.left, y - plot.top) for x, y in points]
+    polygon = [(0, plot.height), *local_curve, (plot.width, plot.height)]
+    pygame.draw.polygon(fill, (*accent_color, 64), polygon)
+    surface.blit(fill, plot.topleft)
+
+    pygame.draw.lines(surface, palette["value_text"], False, points, 2 if is_low_res else 3)
+    pygame.draw.circle(surface, accent_color, points[0], 4)
+    pygame.draw.circle(surface, palette["value_text"], points[0], 2)
+
+    high_label = _make_label("DejaVu Sans", 11, f"H {_format_level(max_level)}", palette["value_text"])
+    low_label = _make_label("DejaVu Sans", 11, f"L {_format_level(min_level)}", palette["value_text"])
+    surface.blit(high_label, (plot.left, rect.top + 8))
+    low_rect = low_label.get_rect(topright=(plot.right, rect.top + 8))
+    surface.blit(low_label, low_rect)
+
+
 def _event_display_name(event_type: str) -> str:
     name = (event_type or "").strip().upper()
     mapping = {
@@ -755,6 +906,16 @@ def draw_clock(surface, config, now: datetime | None = None, station: str | None
         value_rect = value_surface.get_rect(topright=(content_right, current_y))
         surface.blit(value_surface, value_rect)
 
+    profile_margin = 18 if is_low_res else 22
+    profile_height = int(max(100 if is_low_res else 120, min(170, height * 0.17)))
+    profile_top = max(0, height - profile_margin - profile_height)
+    profile_rect = pygame.Rect(
+        content_left,
+        profile_top,
+        max(0, content_right - content_left),
+        profile_height,
+    )
+
     if weather is not None:
         weather_y = row_y + len(entries) * row_step + 18
         weather_label = _make_label("DejaVu Sans", 18, "WEATHER", config.accent_color)
@@ -769,18 +930,40 @@ def draw_clock(surface, config, now: datetime | None = None, station: str | None
 
         line_height = 16
         line_start = weather_y + 30
-        for index, line in enumerate(now_lines[:2]):
+        weather_bottom_limit = profile_rect.top - 10
+        line_budget = max(0, weather_bottom_limit - line_start)
+        reserve_for_wind = 24
+        max_summary_lines = max(0, min(4, (line_budget - reserve_for_wind) // line_height))
+
+        now_limit = min(2, max_summary_lines)
+        next_limit = min(2, max(0, max_summary_lines - now_limit))
+
+        for index, line in enumerate(now_lines[:now_limit]):
             surf = _make_label("DejaVu Sans", 15, line, palette["value_text"])
             surface.blit(surf, (content_left, line_start + index * line_height))
 
-        next_block_start = line_start + min(len(now_lines[:2]), 2) * line_height + 10
-        for index, line in enumerate(next_lines[:2]):
+        next_block_start = line_start + now_limit * line_height
+        if now_limit > 0 and next_limit > 0:
+            next_block_start += 10
+
+        for index, line in enumerate(next_lines[:next_limit]):
             surf = _make_label("DejaVu Sans", 15, line, palette["value_text"])
             surface.blit(surf, (content_left, next_block_start + index * line_height))
 
-        wind_y = next_block_start + min(len(next_lines[:2]), 2) * line_height + 8
-        wind_label = _make_label("DejaVu Sans", 15, f"Wind: {weather.wind_speed}", palette["value_text"])
-        surface.blit(wind_label, (content_left, wind_y))
+        wind_y = next_block_start + next_limit * line_height + 8
+        if wind_y + 14 <= weather_bottom_limit:
+            wind_label = _make_label("DejaVu Sans", 15, f"Wind: {weather.wind_speed}", palette["value_text"])
+            surface.blit(wind_label, (content_left, wind_y))
+
+    _draw_tide_profile_panel(
+        surface,
+        profile_rect,
+        now,
+        forecast,
+        palette,
+        config.accent_color,
+        is_low_res,
+    )
 
     bottom = pygame.Rect(0, height - 120, int(rail_x), 120)
     _draw_alpha_rect(surface, bottom, palette["table_bg"], table_alpha)

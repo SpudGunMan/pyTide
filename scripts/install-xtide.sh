@@ -3,7 +3,8 @@ set -euo pipefail
 
 LIBTCD_VERSION="2.2.7-r3"
 XTIDE_VERSION="2.16"
-HARMONICS_ARCHIVE="harmonics-dwf-20251228-free"
+HARMONICS_RELEASE_API="https://api.github.com/repos/openwatersio/slackwater-database/releases/latest"
+HARMONICS_FILE="slackwater-release.tcd"
 HARMONICS_DIR="/usr/local/share/xtide"
 XTIDE_PREFIX="/usr/local"
 FORCE_BUILD="0"
@@ -72,33 +73,21 @@ fi
 echo "Installing initial harmonics data..."
 mkdir -p "${HARMONICS_DIR}"
 cd "${TMP_DIR}"
-wget -q "https://flaterco.com/files/xtide/${HARMONICS_ARCHIVE}.tar.xz"
-tar xf "${HARMONICS_ARCHIVE}.tar.xz"
 
-HARMONICS_STEM="${HARMONICS_ARCHIVE%-free}"
-HARMONICS_TCD_SOURCE=""
-
-for candidate in \
-  "${HARMONICS_ARCHIVE}/${HARMONICS_ARCHIVE}.tcd" \
-  "${HARMONICS_ARCHIVE}/${HARMONICS_STEM}-free.tcd" \
-  "${HARMONICS_STEM}/${HARMONICS_ARCHIVE}.tcd" \
-  "${HARMONICS_STEM}/${HARMONICS_STEM}-free.tcd"; do
-  if [[ -f "${candidate}" ]]; then
-    HARMONICS_TCD_SOURCE="${candidate}"
-    break
-  fi
-done
-
-if [[ -z "${HARMONICS_TCD_SOURCE}" ]]; then
-  HARMONICS_TCD_SOURCE="$(find . -maxdepth 5 -type f -name '*.tcd' | head -n 1 || true)"
-fi
-
-if [[ -z "${HARMONICS_TCD_SOURCE}" ]]; then
-  echo "Failed to locate harmonics .tcd file after extracting ${HARMONICS_ARCHIVE}.tar.xz" >&2
+HARMONICS_URL="$(wget -qO- "${HARMONICS_RELEASE_API}" | sed -n 's/.*"browser_download_url"[[:space:]]*:[[:space:]]*"\([^"]*\.tcd\)".*/\1/p' | head -n 1)"
+if [[ -z "${HARMONICS_URL}" ]]; then
+  echo "Failed to resolve a .tcd release asset from ${HARMONICS_RELEASE_API}" >&2
   exit 1
 fi
 
-cp -f "${HARMONICS_TCD_SOURCE}" "${HARMONICS_DIR}/"
+wget -q -O "${HARMONICS_FILE}" "${HARMONICS_URL}"
+
+if [[ ! -s "${HARMONICS_FILE}" ]]; then
+  echo "Failed to download harmonics .tcd file from ${HARMONICS_URL}" >&2
+  exit 1
+fi
+
+cp -f "${HARMONICS_FILE}" "${HARMONICS_DIR}/"
 
 echo "${HARMONICS_DIR}" > /etc/xtide.conf
 

@@ -39,8 +39,17 @@ def _draw_text_block(surface, x: int, y: int, title: str, value: str, color: tup
     surface.blit(value_surface, (x, y + title_surface.get_height() + 4))
 
 
-def _format_level(value) -> str:
-    return "--" if value is None else f"{float(value):.1f}"
+def _format_level(value, unit: str | None = None) -> str:
+    if value is None:
+        return "--"
+    normalized_unit = (unit or "").strip().lower()
+    if normalized_unit in {"meter", "meters"}:
+        normalized_unit = "m"
+    if normalized_unit in {"feet", "foot"}:
+        normalized_unit = "ft"
+    if normalized_unit not in {"m", "ft"}:
+        normalized_unit = "m"
+    return f"{float(value):.1f} {normalized_unit}"
 
 
 def _future_readings(readings, now: datetime):
@@ -85,7 +94,13 @@ def _get_forecast_cards(forecast, now: datetime, days: int = 3):
         high = next((r for r in day_events if r.event_type.lower() == "high"), None)
         low = next((r for r in day_events if r.event_type.lower() == "low"), None)
         label = day.strftime("%A").upper()
-        cards.append((label, f"HIGH: {_format_level(high.level) if high else '--'}\nLOW: {_format_level(low.level) if low else '--'}"))
+        cards.append(
+            (
+                label,
+                f"HIGH: {_format_level(high.level, getattr(high, 'level_unit', None)) if high else '--'}\n"
+                f"LOW: {_format_level(low.level, getattr(low, 'level_unit', None)) if low else '--'}",
+            )
+        )
     return cards
 
 

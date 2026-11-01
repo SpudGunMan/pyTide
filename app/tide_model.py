@@ -10,6 +10,7 @@ class TideReading:
     timestamp: datetime
     event_type: str
     level: float | None = None
+    level_unit: str | None = None
     raw: str = ""
 
 

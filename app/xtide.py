@@ -13,6 +13,7 @@ class TideEvent:
     timestamp: datetime
     event_type: str
     height: float | None = None
+    height_unit: str | None = None
     raw: str = ""
 
 
@@ -82,6 +83,25 @@ def get_station_coordinates(xtide_path: str, station: str) -> tuple[float, float
 
 def parse_tide_output(text: str, station: str = "") -> TideForecast:
     events: list[TideEvent] = []
+    event_pattern = re.compile(
+        r"\b(High\s+Tide|Low\s+Tide|Sunrise|Sunset|Moon(?:\s+)?Rise|Moon(?:\s+)?Set|First\s+Quarter|Last\s+Quarter|Full\s+Moon|New\s+Moon)\b",
+        flags=re.IGNORECASE,
+    )
+    height_pattern = re.compile(
+        r"^(?P<height>[-+]?\d+(?:\.\d+)?)\s*(?P<unit>feet|foot|ft|meters|meter|m)?$",
+        flags=re.IGNORECASE,
+    )
+
+    def _normalize_height_unit(unit_text: str | None) -> str | None:
+        if unit_text is None:
+            return None
+        unit = unit_text.strip().lower()
+        if unit in {"feet", "foot", "ft"}:
+            return "ft"
+        if unit in {"meters", "meter", "m"}:
+            return "m"
+        return None
+
     for line in text.splitlines():
         stripped = line.strip()
         if not stripped:
@@ -89,15 +109,22 @@ def parse_tide_output(text: str, station: str = "") -> TideForecast:
         match = re.search(
             r"^(?P<date>\d{4}-\d{2}-\d{2})\s+"
             r"(?P<time>\d{1,2}:\d{2}\s*(?:AM|PM)?)"
-            r"(?:\s+(?P<tz>[A-Z]{3,5}))?"
-            r"(?:\s+(?P<height>[-+]?\d+(?:\.\d+)?)\s*(?:feet|ft)?)?"
-            r"\s+(?P<event>High\s+Tide|Low\s+Tide|Sunrise|Sunset|Moon(?:\s+)?Rise|Moon(?:\s+)?Set|First\s+Quarter|Last\s+Quarter|Full\s+Moon|New\s+Moon)"
-            r"\s*$",
+            r"\s+(?P<tail>.+)$",
             stripped,
             flags=re.IGNORECASE,
         )
         if not match:
             continue
+
+        tail = (match.group("tail") or "").strip()
+        timezone_match = re.match(r"^(?P<tz>[A-Z]{3,5})\s+(?P<rest>.+)$", tail)
+        if timezone_match is not None:
+            tail = timezone_match.group("rest").strip()
+
+        event_match = event_pattern.search(tail)
+        if event_match is None:
+            continue
+
         dt_text = f"{match.group('date')} {match.group('time')}"
         try:
             dt = datetime.strptime(dt_text, "%Y-%m-%d %I:%M %p")
@@ -106,10 +133,23 @@ def parse_tide_output(text: str, station: str = "") -> TideForecast:
                 dt = datetime.strptime(dt_text, "%Y-%m-%d %H:%M")
             except ValueError:
                 continue
-        event_type = _normalize_event_type(match.group("event"))
-        height_value = match.group("height")
-        height = float(height_value) if height_value is not None else None
-        events.append(TideEvent(timestamp=dt, event_type=event_type, height=height, raw=stripped))
+
+        event_type = _normalize_event_type(event_match.group(1))
+        before = tail[:event_match.start()].strip()
+        after = tail[event_match.end():].strip()
+        height = None
+        height_unit = None
+        for segment in (before, after):
+            if not segment:
+                continue
+            height_match = height_pattern.match(segment)
+            if height_match is None:
+                continue
+            height = float(height_match.group("height"))
+            height_unit = _normalize_height_unit(height_match.group("unit"))
+            break
+
+        events.append(TideEvent(timestamp=dt, event_type=event_type, height=height, height_unit=height_unit, raw=stripped))
 
     return TideForecast(station=station, events=events, source="xtide")
 

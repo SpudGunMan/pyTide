@@ -28,11 +28,17 @@ def _latest_tcd_info(harmonics_dir: str) -> tuple[Path, float] | None:
 def _build_model(config: TideClockConfig) -> TideModel:
     try:
         forecast = fetch_forecast(config.xtide_path, config.station, days=10)
+        default_unit = (config.tide_height_unit or "m").strip().lower()
+        if default_unit in {"meter", "meters"}:
+            default_unit = "m"
+        if default_unit in {"feet", "foot"}:
+            default_unit = "ft"
         readings = [
             TideReading(
                 timestamp=event.timestamp,
                 event_type=event.event_type,
                 level=event.height,
+                level_unit=event.height_unit or default_unit,
                 raw=event.raw,
             )
             for event in forecast.events

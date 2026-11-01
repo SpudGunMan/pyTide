@@ -8,7 +8,7 @@ It is designed to:
 
 - render a fullscreen or windowed tide clock
 - read predictions from a local XTide installation
-- update harmonics automatically from Flaterco or openwatersio sources
+- update harmonics automatically from OpenWater Slackwater GitHub releases
 
 
 ## Quick start
@@ -86,7 +86,9 @@ CLI flags override any values loaded from `settings.example.json` and `settings.
 - `--station` (default: `LOCAL STATION`): XTide station name to render.
 - `--xtide-path` (default: `/usr/local/bin/tide`): Path to the XTide `tide` executable.
 - `--harmonics-dir` (default: `/usr/local/share/xtide`): Directory containing harmonics files.
+- `--harmonics-url` (default: `https://api.github.com/repos/openwatersio/slackwater-database/releases/latest`): GitHub latest release endpoint used to resolve the newest harmonics `.tcd` asset.
 - `--cache-dir` (default: `.pytide-cache`): Local cache directory.
+- `--tide-height-unit` (default: `m`): Default unit label used when XTide output does not include explicit units (`m` or `ft`).
 
 ### Coordinates and weather
 
@@ -168,19 +170,17 @@ make
 sudo make install
 
 cd /tmp
-rm -f harmonics-dwf-20251228-free.tar.xz*
-wget https://flaterco.com/files/xtide/harmonics-dwf-20251228-free.tar.xz
-tar xf harmonics-dwf-20251228-free.tar.xz
-cd harmonics-dwf-20251228
+HARMONICS_URL="$(wget -qO- https://api.github.com/repos/openwatersio/slackwater-database/releases/latest | sed -n 's/.*"browser_download_url"[[:space:]]*:[[:space:]]*"\([^"]*\.tcd\)".*/\1/p' | head -n 1)"
+wget -O slackwater-release.tcd "${HARMONICS_URL}"
 sudo mkdir -p /usr/local/share/xtide
-sudo cp harmonics-dwf-20251228-free.tcd /usr/local/share/xtide/
+sudo cp slackwater-release.tcd /usr/local/share/xtide/
 
 echo "/usr/local/share/xtide" | sudo tee /etc/xtide.conf
 
 /usr/local/bin/tide -l "Palo Alto Yacht Harbor, San Francisco Bay, California"
 ```
 
-If your location is outside the US, use a harmonics file from the `openwatersio/tide-database` releases instead of the Flaterco bundle.
+The OpenWater Slackwater TCD uses meters for tide heights. XTide can still render feet if requested with `-u ft`.
 
 ## Set the tide station location and weather coordinates
 
@@ -223,4 +223,4 @@ from app.harmonics_updater import refresh_harmonics_if_needed
 path = refresh_harmonics_if_needed("/usr/local/share/xtide", max_age_hours=336)
 print(path)
 ```
-This uses the Flaterco archive by default and falls back to the last known good `.tcd` file if the network download fails.
+This resolves the newest OpenWater Slackwater release asset by default and falls back to the newest local `.tcd` file and then `last_known_good.tcd` if the network download fails.

@@ -69,6 +69,29 @@ def test_parse_tide_output_matches_xtide_output_with_timezone_and_moon_events():
     assert len(forecast.events) == 6
 
 
+def test_parse_tide_output_matches_openwater_metric_format():
+    forecast = parse_tide_output(
+        """
+        2026-10-31 11:09 AM PDT 3.20 meters High Tide
+        2026-10-31 02:19 PM PDT Moonset
+        2026-10-31 05:05 PM PDT 2.31 meters Low Tide
+        2026-10-31 05:51 PM PDT Sunset
+        2026-11-01 03:35 AM PST -0.31 meters Low Tide
+        2026-11-01 11:17 AM PST 3.17 meters High Tide
+        """,
+        station="La Conner, WA, United States",
+    )
+
+    assert len(forecast.events) == 6
+    high_events = [event for event in forecast.events if event.event_type == "High"]
+    low_events = [event for event in forecast.events if event.event_type == "Low"]
+    assert high_events[0].height == 3.20
+    assert high_events[0].height_unit == "m"
+    assert low_events[0].height == 2.31
+    assert low_events[1].height == -0.31
+    assert low_events[1].height_unit == "m"
+
+
 def test_future_filter_keeps_only_upcoming_events():
     now = datetime(2026, 10, 29, 12, 0)
     events = [
@@ -94,6 +117,7 @@ def test_config_defaults_are_valid():
     cfg = TideClockConfig()
     assert cfg.station
     assert cfg.xtide_path
+    assert cfg.harmonics_url
     assert cfg.refresh_seconds > 0
     assert cfg.harmonics_refresh_hours > 0
     assert cfg.latitude is None or -90 <= cfg.latitude <= 90
@@ -107,6 +131,19 @@ def test_parse_coordinate_handles_cardinal_directions():
     assert parse_coordinate("73.1E", "longitude") == 73.1
     assert TideClockConfig.from_args(["--latitude", "48.4N", "--longitude", "122.6W"]).latitude == 48.4
     assert TideClockConfig.from_args(["--latitude", "48.4N", "--longitude", "122.6W"]).longitude == -122.6
+
+
+def test_config_accepts_harmonics_url_and_unit_aliases():
+    cfg = TideClockConfig.from_args(
+        [
+            "--harmonics-url",
+            "https://api.github.com/repos/openwatersio/slackwater-database/releases/latest",
+            "--tide-height-unit",
+            "meters",
+        ]
+    )
+    assert cfg.harmonics_url.endswith("/releases/latest")
+    assert cfg.tide_height_unit == "m"
 
 
 def test_xtide_station_output_parses_lat_lon():

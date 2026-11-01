@@ -152,6 +152,7 @@ def main(argv: list[str] | None = None) -> int:
                     elif event.key == pygame.K_f:
                         config.fullscreen = not config.fullscreen
                         pygame.display.set_mode((0, 0), pygame.FULLSCREEN if config.fullscreen else 0)
+                        pygame.mouse.set_visible(not config.fullscreen)
 
             if not tide_model.readings:
                 try:

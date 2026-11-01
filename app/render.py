@@ -24,6 +24,7 @@ def init_display(width: int, height: int, fullscreen: bool = False):
         screen = pygame.display.set_mode((info.current_w, info.current_h), pygame.FULLSCREEN)
     else:
         screen = pygame.display.set_mode((width, height))
+    pygame.mouse.set_visible(not fullscreen)
     return screen
 
 

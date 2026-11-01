@@ -17,49 +17,24 @@ It is designed to:
 
    `sudo bash scripts/install.sh --user pi --install-dir /opt/pytide --with-xtide`
 
-2. Enable autolaunch service:
+2. Set your tide station see [Set Station](#set-the-tide-station-location-and-weather-coordinates)
 
-   `sudo bash /opt/pytide/scripts/setup-autolaunch.sh --user pi --install-dir /opt/pytide`
-
-3. Validate service status:
-
-   `systemctl status pytide.service --no-pager`
-
-4. Optional manual launch in windowed mode:
+3. Optional manual launch in windowed mode:
 
    `python -m app.main --windowed`
 
-5. Optional manual launch in fullscreen kiosk mode:
-
-   `python -m app.main --fullscreen`
-
-For manual XTide install steps instead of scripts, see [Install XTide](#install-xtide-on-raspberry-pi-or-ubuntu).
 
 ## One-command install and autolaunch
 
 For Raspberry Pi/Ubuntu deployments, use the helper scripts:
 
-1. Install dependencies, deploy app to `/opt/pytide`, create virtualenv, and install Python packages:
-
-   `sudo bash scripts/install.sh --user pi --install-dir /opt/pytide`
-
-   To also install/build XTide and seed initial harmonics data in one pass:
-
-   `sudo bash scripts/install.sh --user pi --install-dir /opt/pytide --with-xtide`
-
-2. (Optional standalone) Install/build XTide and initial harmonics only:
-
-   `sudo bash scripts/install-xtide.sh`
-
-3. Install and enable systemd autolaunch service:
+1. Install and enable systemd autolaunch service:
 
    `sudo bash /opt/pytide/scripts/setup-autolaunch.sh --user pi --install-dir /opt/pytide`
 
-4. Validate service status:
+2. Validate service status:
 
    `systemctl status pytide.service --no-pager`
-
-The install script creates `settings.json` from `settings.example.json` when missing, and preserves existing `settings.json` values across re-installs.
 
 ## Uninstall and rollback
 
@@ -74,7 +49,6 @@ To remove both service and install directory:
 ```bash
 sudo bash /opt/pytide/scripts/uninstall.sh --service-name pytide --install-dir /opt/pytide --purge
 ```
-
 
 ## CLI options
 
@@ -136,83 +110,6 @@ CLI flags override any values loaded from `settings.example.json` and `settings.
 - If neither `--fullscreen` nor `--windowed` is provided, the app defaults to windowed mode.
 - Alpha values are clamped to `0-255`.
 
-## Install XTide on Raspberry Pi or Ubuntu
-
-These are the minimal install steps for a Pi running Ubuntu Linux.
-
-If you prefer automation, run:
-
-```bash
-sudo bash scripts/install-xtide.sh
-```
-
-Manual steps:
-
-```bash
-sudo apt-get update
-sudo apt-get install -y build-essential libpng-dev wget xz-utils
-
-cd /tmp
-wget https://flaterco.com/files/xtide/libtcd-2.2.7-r3.tar.xz
-tar xf libtcd-2.2.7-r3.tar.xz
-cd libtcd-2.2.7
-./configure
-make
-sudo make install
-sudo ldconfig
-
-cd /tmp
-wget https://flaterco.com/files/xtide/xtide-2.16.tar.xz
-tar xf xtide-2.16.tar.xz
-cd xtide-2.16
-./configure --without-x --disable-shared CPPFLAGS="-I/usr/local/include" LDFLAGS="-L/usr/local/lib"
-make
-sudo make install
-
-cd /tmp
-HARMONICS_URL="$(wget -qO- https://api.github.com/repos/openwatersio/slackwater-database/releases/latest | sed -n 's/.*"browser_download_url"[[:space:]]*:[[:space:]]*"\([^"]*\.tcd\)".*/\1/p' | head -n 1)"
-wget -O slackwater-release.tcd "${HARMONICS_URL}"
-sudo mkdir -p /usr/local/share/xtide
-sudo cp slackwater-release.tcd /usr/local/share/xtide/
-
-echo "/usr/local/share/xtide" | sudo tee /etc/xtide.conf
-
-/usr/local/bin/tide -l "Palo Alto Yacht Harbor, San Francisco Bay, California"
-```
-
-The OpenWater Slackwater TCD uses meters for tide heights. pyTide defaults to feet output and requests XTide output in the configured unit.
-
-## Set the tide station location and weather coordinates
-
-XTide needs a specific station name; the clock will not work correctly until the configured station matches a real entry in your harmonics file.
-
-```bash
-python -m app.main --station "La Conner, Washington" 
-```
-
-List the available stations:
-
-```bash
-/usr/local/bin/tide -m l
-```
-
-Then choose a station and set it in the app configuration. The simplest approach is to pass it on the command line:
-
-```bash
-python -m app.main --station "Nummy Island, Grassy Sound Channel, Hereford Inlet, New Jersey"
-```
-
-Or copy example config `settings.example.json` to `settings.json`:
-
-```json
-{
-  "station": "Nummy Island, Grassy Sound Channel, Hereford Inlet, New Jersey"
-}
-```
-
-Keep the station name exactly as listed by XTide, including commas and punctuation.
-
-
 ## Automatic harmonics updates
 
 The app keeps a local copy of the harmonics file and refreshes it when it is older than the configured age window (default: 336 hours / 14 days).
@@ -224,3 +121,30 @@ path = refresh_harmonics_if_needed("/usr/local/share/xtide", max_age_hours=336)
 print(path)
 ```
 This resolves the newest OpenWater Slackwater release asset by default and falls back to the newest local `.tcd` file and then `last_known_good.tcd` if the network download fails.
+
+## Set the tide station location and weather coordinates
+
+XTide needs a specific station name; the clock will not work correctly until the configured station matches a real entry in your harmonics file.
+
+List the available stations:
+
+```bash
+/usr/local/bin/tide -m l
+```
+
+Then choose a station and set it in the app configuration. The simplest approach is to pass it on the command line:
+
+```bash
+python -m app.main --station "La Conner, WA United States" 
+```
+
+Or copy example config `settings.example.json` to `settings.json`:
+
+```json
+{
+  "station": "La Conner, WA United States"
+}
+```
+
+Keep the station name exactly as listed by XTide, including commas and punctuation.
+

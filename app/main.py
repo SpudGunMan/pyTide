@@ -110,10 +110,7 @@ def _refresh_harmonics(config: TideClockConfig) -> None:
             return
         if before is not None and after is not None and before[0] == after[0] and abs(before[1] - after[1]) < 1e-6:
             age_hours = max(0.0, (now - after[1]) / 3600.0)
-            print(
-                f"Harmonics check: current ({after[0].name}, age {age_hours:.1f}h, threshold {config.harmonics_refresh_hours}h)",
-                file=sys.stderr,
-            )
+            #print(f"Harmonics check: current ({after[0].name}, age {age_hours:.1f}h, threshold {config.harmonics_refresh_hours}h)",file=sys.stderr,)
             return
         if after is not None:
             print(f"Harmonics check: refreshed to {after[0].name}", file=sys.stderr)
@@ -140,6 +137,7 @@ def main(argv: list[str] | None = None) -> int:
         weather = _build_weather(config)
         last_weather_fetch = datetime.now()
         last_harmonics_check = datetime.now()
+        last_tide_refresh = datetime.now()
         running = True
 
         while running:
@@ -154,13 +152,15 @@ def main(argv: list[str] | None = None) -> int:
                         pygame.display.set_mode((0, 0), pygame.FULLSCREEN if config.fullscreen else 0)
                         pygame.mouse.set_visible(not config.fullscreen)
 
-            if not tide_model.readings:
+            now = datetime.now()
+
+            if not tide_model.readings or (now - last_tide_refresh).total_seconds() >= config.refresh_seconds:
                 try:
                     tide_model = _build_model(config)
+                    last_tide_refresh = now
                 except Exception:
                     pass
 
-            now = datetime.now()
             if config.weather_enabled and (now - last_weather_fetch).total_seconds() >= config.weather_refresh_seconds:
                 weather = _build_weather(config)
                 last_weather_fetch = now

@@ -59,7 +59,7 @@ class TideClockConfig:
     windowed: bool = True
     width: int = 1280
     height: int = 800
-    refresh_seconds: int = 300
+    refresh_seconds: int = 21600
     harmonics_refresh_hours: int = 336
     theme: str = "light"
     background_image: str | None = "img/beach.jpeg"

@@ -119,7 +119,7 @@ def test_config_defaults_are_valid():
     assert cfg.xtide_path
     assert cfg.harmonics_url
     assert cfg.tide_height_unit == "ft"
-    assert cfg.refresh_seconds > 0
+    assert cfg.refresh_seconds == 21600
     assert cfg.harmonics_refresh_hours > 0
     assert cfg.latitude is None or -90 <= cfg.latitude <= 90
     assert cfg.longitude is None or -180 <= cfg.longitude <= 180

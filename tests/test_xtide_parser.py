@@ -3,7 +3,7 @@ from datetime import datetime
 
 from app.config import TideClockConfig, parse_coordinate
 from app.tide_model import TideModel, TideReading
-from app.render import _build_day_rows, _get_forecast_cards, _resolve_tide_angle
+from app.render import _build_day_rows, _build_tide_profile_series, _get_forecast_cards, _resolve_tide_angle
 from app.xtide import parse_station_coordinates, parse_tide_output
 
 
@@ -329,3 +329,19 @@ def test_tide_angle_does_not_snap_to_low_before_low_time_when_previous_extrema_m
     angle = _resolve_tide_angle(model, now)
     assert angle is not None
     assert 0.0 < angle < (math.pi / 2)
+
+
+def test_tide_profile_does_not_snap_to_upcoming_high_when_previous_extrema_missing():
+    now = datetime(2026, 10, 29, 13, 0)
+    model = TideModel(
+        station="Test Station",
+        readings=[
+            TideReading(datetime(2026, 10, 29, 14, 36), "High", 9.8),
+            TideReading(datetime(2026, 10, 29, 19, 2), "Low", -2.6),
+        ],
+    )
+
+    series = _build_tide_profile_series(model, now, hours=1, samples=4)
+    assert series
+    first_level = series[0][1]
+    assert -2.6 < first_level < 9.8

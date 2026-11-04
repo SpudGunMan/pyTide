@@ -76,7 +76,7 @@ def _profile_tide_events(forecast):
         level = _reading_level(reading)
         if kind is None or level is None:
             continue
-        events.append((reading.timestamp, level))
+        events.append((reading.timestamp, level, kind))
     return events
 
 
@@ -85,23 +85,55 @@ def _estimate_tide_level(sample_time: datetime, tide_events) -> float | None:
         return None
 
     previous = None
+    previous_idx = -1
     upcoming = None
-    for event_time, level in tide_events:
+    upcoming_idx = -1
+    for idx, (event_time, level, kind) in enumerate(tide_events):
         if event_time <= sample_time:
-            previous = (event_time, level)
+            previous = (event_time, level, kind)
+            previous_idx = idx
             continue
-        upcoming = (event_time, level)
+        upcoming = (event_time, level, kind)
+        upcoming_idx = idx
         break
 
     if previous is None and upcoming is None:
         return None
-    if previous is None:
-        return upcoming[1]
-    if upcoming is None:
-        return previous[1]
 
-    prev_time, prev_level = previous
-    next_time, next_level = upcoming
+    if previous is None:
+        next_opposite = None
+        for idx in range(upcoming_idx + 1, len(tide_events)):
+            candidate = tide_events[idx]
+            if candidate[2] != upcoming[2]:
+                next_opposite = candidate
+                break
+
+        if next_opposite is None:
+            return upcoming[1]
+
+        cycle = max(60.0, (next_opposite[0] - upcoming[0]).total_seconds())
+        synthetic_previous_time = upcoming[0] - timedelta(seconds=cycle)
+        # Reuse opposite-extrema level from the next cycle as a stable fallback.
+        previous = (synthetic_previous_time, next_opposite[1], next_opposite[2])
+
+    if upcoming is None:
+        prev_opposite = None
+        for idx in range(previous_idx - 1, -1, -1):
+            candidate = tide_events[idx]
+            if candidate[2] != previous[2]:
+                prev_opposite = candidate
+                break
+
+        if prev_opposite is None:
+            return previous[1]
+
+        cycle = max(60.0, (previous[0] - prev_opposite[0]).total_seconds())
+        synthetic_upcoming_time = previous[0] + timedelta(seconds=cycle)
+        # Mirror the opposite-extrema level to avoid edge-of-window flat lines.
+        upcoming = (synthetic_upcoming_time, prev_opposite[1], prev_opposite[2])
+
+    prev_time, prev_level, _ = previous
+    next_time, next_level, _ = upcoming
     span_seconds = max(1.0, (next_time - prev_time).total_seconds())
     elapsed_seconds = max(0.0, min(span_seconds, (sample_time - prev_time).total_seconds()))
     progress = elapsed_seconds / span_seconds

@@ -197,7 +197,7 @@ def _draw_tide_profile_panel(
 
     pygame.draw.line(surface, palette["tick"], (plot.left, plot.centery), (plot.right, plot.centery), 1)
 
-    profile = _build_tide_profile_series(forecast, now, hours=24, samples=56 if is_low_res else 84)
+    profile = _build_tide_profile_series(forecast, now, hours=48, samples=56 if is_low_res else 84)
     if len(profile) < 2:
         no_data = _make_label("DejaVu Sans", 12, "NO TIDE DATA", palette["value_text"])
         no_data_rect = no_data.get_rect(center=plot.center)
@@ -212,7 +212,7 @@ def _draw_tide_profile_panel(
         max_level += 0.5
 
     span = max_level - min_level
-    window_seconds = 24 * 3600
+    window_seconds = 48 * 3600
 
     points = []
     for stamp, level in profile:

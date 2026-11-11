@@ -132,6 +132,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         _refresh_harmonics(config)
         screen = init_display(config.width, config.height, fullscreen=config.fullscreen)
+        pygame.mouse.set_visible(False)  # Hide cursor since mouse is not used
         clock = pygame.time.Clock()
         tide_model = _build_model(config)
         weather = _build_weather(config)
@@ -150,7 +151,6 @@ def main(argv: list[str] | None = None) -> int:
                     elif event.key == pygame.K_f:
                         config.fullscreen = not config.fullscreen
                         pygame.display.set_mode((0, 0), pygame.FULLSCREEN if config.fullscreen else 0)
-                        pygame.mouse.set_visible(not config.fullscreen)
 
             now = datetime.now()
 

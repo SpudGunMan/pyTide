@@ -127,6 +127,8 @@ cp -f "${HARMONICS_FILE}" "${HARMONICS_DIR}/"
 
 echo "${HARMONICS_DIR}" > /etc/xtide.conf
 
+echo "Latest harmonics data downloaded from: ${HARMONICS_URL}"
+
 echo "XTide setup complete."
 echo "  tide binary: $(command -v tide || echo "not found in PATH")"
 echo "  harmonics dir: ${HARMONICS_DIR}"

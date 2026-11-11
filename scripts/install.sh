@@ -37,7 +37,7 @@ REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 echo "Installing system dependencies..."
 apt-get update
-apt-get install -y python3 python3-venv python3-pip rsync build-essential libpng-dev wget xz-utils
+apt-get install -y python3 python3-venv python3-pip rsync build-essential libpng-dev wget xz-utils fontconfig
 
 echo "Deploying project to ${INSTALL_DIR}..."
 mkdir -p "${INSTALL_DIR}"

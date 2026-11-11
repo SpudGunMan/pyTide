@@ -148,3 +148,6 @@ Or copy example config `settings.example.json` to `settings.json`:
 
 Keep the station name exactly as listed by XTide, including commas and punctuation.
 
+# pyGameOS
+Checkout [pyGameOS](https://github.com/SpudGunMan/pyGameOS) for a nice way to load the project into a device clock.
+

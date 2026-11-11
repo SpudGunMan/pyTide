@@ -8,6 +8,7 @@ HARMONICS_FILE="slackwater-release.tcd"
 HARMONICS_DIR="/usr/local/share/xtide"
 XTIDE_PREFIX="/usr/local"
 FORCE_BUILD="0"
+FORCE_SINGLE_THREAD="0"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -23,17 +24,52 @@ while [[ $# -gt 0 ]]; do
       FORCE_BUILD="1"
       shift
       ;;
+    --single-thread)
+      FORCE_SINGLE_THREAD="1"
+      shift
+      ;;
     *)
       echo "Unknown option: $1" >&2
-      echo "Usage: sudo bash scripts/install-xtide.sh [--harmonics-dir /usr/local/share/xtide] [--prefix /usr/local] [--force-build]" >&2
+      echo "Usage: sudo bash scripts/install-xtide.sh [--harmonics-dir /usr/local/share/xtide] [--prefix /usr/local] [--force-build] [--single-thread]" >&2
       exit 2
       ;;
   esac
 done
 
+# Detect available RAM and adjust build jobs for low-memory systems
+get_make_jobs() {
+  local nprocs=$(nproc || echo 2)
+  local available_ram_kb=$(grep MemAvailable /proc/meminfo 2>/dev/null | awk '{print $2}')
+  local available_ram_mb=$((available_ram_kb / 1024))
+  
+  if [[ "${FORCE_SINGLE_THREAD}" == "1" ]]; then
+    echo "1"
+    return
+  fi
+  
+  # Use single-threaded build on systems with less than 512MB available RAM
+  if [[ -n "${available_ram_mb}" ]] && [[ ${available_ram_mb} -lt 512 ]]; then
+    echo "1"
+  # Use reduced jobs on systems with less than 1GB available RAM
+  elif [[ -n "${available_ram_mb}" ]] && [[ ${available_ram_mb} -lt 1024 ]]; then
+    echo "2"
+  else
+    echo "${nprocs}"
+  fi
+}
+
 if [[ ${EUID} -ne 0 ]]; then
   echo "Please run as root (for package install and /usr/local writes)." >&2
   exit 1
+fi
+
+# Detect and display build configuration
+BUILD_JOBS=$(get_make_jobs)
+if [[ "${BUILD_JOBS}" == "1" ]]; then
+  echo "⚠️  Low memory system detected or single-thread mode enabled. Using single-threaded compilation (-j1)."
+  echo "    This will be slow but prevents out-of-memory errors on resource-constrained systems."
+elif [[ "${BUILD_JOBS}" == "2" ]]; then
+  echo "⚠️  Limited memory available. Using reduced parallelism (-j2) for compilation."
 fi
 
 TMP_DIR="$(mktemp -d /tmp/pytide-xtide-XXXXXX)"
@@ -56,7 +92,7 @@ else
   tar xf "libtcd-${LIBTCD_VERSION}.tar.xz"
   cd "libtcd-${LIBTCD_VERSION%%-r*}"
   ./configure --prefix="${XTIDE_PREFIX}"
-  make -j"$(nproc || echo 2)"
+  make -j"$(get_make_jobs)"
   make install
   ldconfig
 
@@ -66,7 +102,7 @@ else
   tar xf "xtide-${XTIDE_VERSION}.tar.xz"
   cd "xtide-${XTIDE_VERSION}"
   ./configure --prefix="${XTIDE_PREFIX}" --without-x --disable-shared CPPFLAGS="-I${XTIDE_PREFIX}/include" LDFLAGS="-L${XTIDE_PREFIX}/lib"
-  make -j"$(nproc || echo 2)"
+  make -j"$(get_make_jobs)"
   make install
 fi
 

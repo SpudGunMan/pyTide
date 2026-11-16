@@ -40,7 +40,7 @@ def _http_json(url: str) -> dict[str, Any]:
     req = request.Request(
         url,
         headers={
-            "User-Agent": "pyTide/0.1 (+https://github.com/kellyk/pyTide)",
+            "User-Agent": "pyTide/0.1 (+https://github.com/spudgunman/pyTide)",
             "Accept": "application/json",
         },
     )

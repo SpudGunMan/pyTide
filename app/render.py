@@ -266,15 +266,15 @@ def _get_forecast_cards(forecast, now: datetime, days: int = 3):
     if not forecast or not getattr(forecast, "readings", None):
         return fallback_cards
 
-    readings = sorted(forecast.readings, key=lambda event: event.timestamp)
-    if not readings:
+    future = _future_readings(forecast.readings, now)
+    if not future:
         return fallback_cards
 
     cards = []
     current_day = now.date()
     for day_offset in range(days):
         day = current_day + timedelta(days=day_offset)
-        day_events = [r for r in readings if r.timestamp.date() == day]
+        day_events = [r for r in future if r.timestamp.date() == day]
         high = next((r for r in day_events if r.event_type.lower() == "high"), None)
         low = next((r for r in day_events if r.event_type.lower() == "low"), None)
         label = day.strftime("%A").upper()
@@ -705,8 +705,6 @@ def _resolve_tide_angle(forecast, now: datetime) -> float | None:
             cycle = max(60.0, (next_opposite.timestamp - upcoming.timestamp).total_seconds())
             synthetic_kind = "high" if next_kind == "low" else "low"
             synthetic_previous_time = upcoming.timestamp - timedelta(seconds=cycle)
-            while synthetic_previous_time > now:
-                synthetic_previous_time -= timedelta(seconds=cycle * 2)
             previous = type("SyntheticTideEvent", (), {"timestamp": synthetic_previous_time, "event_type": synthetic_kind})
         else:
             return _anchor_angle_for_tide(next_kind)
@@ -720,8 +718,6 @@ def _resolve_tide_angle(forecast, now: datetime) -> float | None:
             cycle = max(60.0, (previous.timestamp - prev_opposite.timestamp).total_seconds())
             synthetic_kind = "high" if prev_kind == "low" else "low"
             synthetic_upcoming_time = previous.timestamp + timedelta(seconds=cycle)
-            while synthetic_upcoming_time <= now:
-                synthetic_upcoming_time += timedelta(seconds=cycle * 2)
             upcoming = type("SyntheticTideEvent", (), {"timestamp": synthetic_upcoming_time, "event_type": synthetic_kind})
         else:
             return _anchor_angle_for_tide(prev_kind)

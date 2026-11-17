@@ -345,3 +345,20 @@ def test_tide_profile_does_not_snap_to_upcoming_high_when_previous_extrema_missi
     assert series
     first_level = series[0][1]
     assert -2.6 < first_level < 9.8
+
+
+def test_tide_angle_tracks_countdown_scale_for_short_ebb_window():
+    now = datetime(2026, 11, 16, 16, 46)
+    model = TideModel(
+        station="Test Station",
+        readings=[
+            TideReading(datetime(2026, 11, 16, 15, 13), "High", 6.7),
+            TideReading(datetime(2026, 11, 16, 18, 19), "Low", 6.5),
+            TideReading(datetime(2026, 11, 16, 21, 26), "High", 9.8),
+        ],
+    )
+
+    angle = _resolve_tide_angle(model, now)
+    assert angle is not None
+    # About 93 minutes to low should render near the "1-2 hours" section, not at midpoint.
+    assert 0.6 < angle < 1.2

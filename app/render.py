@@ -735,11 +735,14 @@ def _resolve_tide_angle(forecast, now: datetime) -> float | None:
     if prev_kind == next_kind:
         return _anchor_angle_for_tide(prev_kind)
 
-    span_seconds = max(1.0, (upcoming.timestamp - previous.timestamp).total_seconds())
-    elapsed = max(0.0, min(span_seconds, (now - previous.timestamp).total_seconds()))
-    progress = elapsed / span_seconds
+    # Keep the large tide hand aligned to the countdown scale labels (1..5 hours).
+    # Tide intervals vary in real forecasts, but the dial itself is a fixed six-hour guide.
+    half_cycle_seconds = 6 * 3600
+    seconds_to_next = max(0.0, (upcoming.timestamp - now).total_seconds())
+    bounded_remaining = min(float(half_cycle_seconds), seconds_to_next)
+    progress = 1.0 - (bounded_remaining / float(half_cycle_seconds))
 
-    if prev_kind == "high":
+    if next_kind == "low":
         start = -math.pi / 2
         end = math.pi / 2
     else:
